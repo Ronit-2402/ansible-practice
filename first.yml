@@ -1,0 +1,16 @@
+---
+- name: First test from AAP
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Ping the host
+      ansible.builtin.ping:
+
+    - name: Check uptime
+      ansible.builtin.command: uptime
+      register: up
+      changed_when: false
+
+    - name: Show uptime
+      ansible.builtin.debug:
+        msg: "{{ up.stdout }}"
