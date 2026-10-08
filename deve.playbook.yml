@@ -1,0 +1,37 @@
+---
+- name: creating user and directory practice
+  hosts: lab
+  become: true
+ 
+  vars:
+    usernames: [ "dev1" , "dev2" , "dev3" ]
+
+  tasks:
+    - name: making the group
+      ansible.builtin.group:
+        name: devteam
+        state: present
+
+    - name: adding dvlpr in group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        group: devteam
+        state: present
+      loop: "{{ usernames }}" 
+
+    - name: making a directory
+      ansible.builtin.file:
+        path: /opt/practice
+        owner: admin
+        mode: "0755"
+
+    - name: adding the file in directory
+      ansible.builtin.copy: 
+        dest: /opt/practice/info.txt
+        content: "Managed by Ansible\n"
+
+    - name: printing the users list
+      ansible.builtin.debug:
+        msg: usernames 
+
+    
