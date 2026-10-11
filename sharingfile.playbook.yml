@@ -1,0 +1,23 @@
+---
+- name: sharing the file
+  hosts: guestserver1
+  gather_facts: false
+
+  tasks:
+    - name: fetching the file
+      ansible.builtin.fetch:
+        src: /etc/titan.txt
+        dest: /tmp/titan.txt
+        flat: true
+
+- name: saving the file at the desired path
+  hosts: 2guestserver
+  become: true
+  gather_facts: false
+   
+  tasks:
+    - name: copy the file 
+      ansible.builtin.copy:
+        src: /tmp/titan.txt
+        dest: /etc/titan.txt
+        mode: "0644"
