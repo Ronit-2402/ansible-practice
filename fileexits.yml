@@ -13,7 +13,7 @@
         msg: "file exists"
       when: file_status.stat.exists
 
-     - name: showing the file status
+    - name: showing the file status
       ansible.builtin.debug:
         msg: "file do not exists"
       when: not file_status.stat.exists
