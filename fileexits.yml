@@ -1,0 +1,14 @@
+---
+- name: checking if the titan file exists or not
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: giving the search path
+      ansible.builtin.stat:
+        path: etc/titan.txt
+      register: file_status
+
+    - name: showing the file status
+      ansible.builtin.debug:
+        msg: "file exists"
+        when: file_status.stat.exists
