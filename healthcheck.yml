@@ -1,0 +1,79 @@
+---
+- name: VM health check
+  hosts: all
+  gather_facts: yes
+  tasks:
+    # Thresholds: inventory/group vars ya Extra Vars se override ho sakte hain
+    - name: Set thresholds
+      ansible.builtin.set_fact:
+        t_disk: "{{ disk_warning | default(85) | int }}"
+        t_mem: "{{ mem_warning | default(90) | int }}"
+        t_load: "{{ load_per_cpu_warning | default(1.5) | float }}"
+        ignore_fstypes: [tmpfs, devtmpfs, squashfs, overlay, iso9660]
+
+    - name: Disk usage per mount
+      ansible.builtin.set_fact:
+        disk_usage: >-
+          {{ disk_usage | default([]) +
+             [{'mount': item.mount,
+               'used_pct': ((item.size_total - item.size_available) / item.size_total * 100) | round(1)}] }}
+      loop: "{{ ansible_mounts }}"
+      loop_control:
+        label: "{{ item.mount }}"
+      when:
+        - item.size_total > 0
+        - item.fstype not in ignore_fstypes
+
+    - name: Memory and load numbers
+      ansible.builtin.set_fact:
+        mem_used_pct: "{{ ((ansible_memory_mb.real.total - ansible_memory_mb.nocache.free) / ansible_memory_mb.real.total * 100) | round(1) }}"
+        load_per_cpu: "{{ (ansible_loadavg['5m'] / ansible_processor_vcpus) | round(2) }}"
+
+    - name: Start with no problems
+      ansible.builtin.set_fact:
+        health_reasons: []
+
+    - name: Flag high disk usage
+      ansible.builtin.set_fact:
+        health_reasons: "{{ health_reasons + ['disk ' ~ item.mount ~ ' at ' ~ item.used_pct ~ '%'] }}"
+      loop: "{{ disk_usage | default([]) }}"
+      loop_control:
+        label: "{{ item.mount }}"
+      when: item.used_pct | float >= t_disk | int
+
+    - name: Flag high memory usage
+      ansible.builtin.set_fact:
+        health_reasons: "{{ health_reasons + ['memory at ' ~ mem_used_pct ~ '%'] }}"
+      when: mem_used_pct | float >= t_mem | int
+
+    - name: Flag high load
+      ansible.builtin.set_fact:
+        health_reasons: "{{ health_reasons + ['load per cpu ' ~ load_per_cpu] }}"
+      when: load_per_cpu | float >= t_load | float
+
+    - name: Decide final status
+      ansible.builtin.set_fact:
+        health_status: "{{ 'INVESTIGATE' if health_reasons | length > 0 else 'GOOD' }}"
+
+- name: Final report
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Show status of every VM
+      ansible.builtin.debug:
+        msg: >-
+          {{ item }} : {{ hostvars[item].health_status | default('UNREACHABLE / NO DATA') }}
+          {{ hostvars[item].health_reasons | default([]) | join(', ') }}
+      loop: "{{ groups['all'] }}"
+
+    - name: Collect VMs that need attention
+      ansible.builtin.set_fact:
+        bad_hosts: "{{ bad_hosts | default([]) + [item] }}"
+      loop: "{{ groups['all'] }}"
+      when: hostvars[item].health_status | default('UNREACHABLE') != 'GOOD'
+
+    - name: Fail the job if any VM needs investigation
+      ansible.builtin.fail:
+        msg: "Needs investigation: {{ bad_hosts | join(', ') }}"
+      when: bad_hosts is defined and bad_hosts | length > 0
+        
