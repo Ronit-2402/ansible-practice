@@ -5,10 +5,15 @@
   tasks:
     - name: giving the search path
       ansible.builtin.stat:
-        path: etc/titan.txt
+        path: /etc/titan.txt
       register: file_status
 
     - name: showing the file status
       ansible.builtin.debug:
         msg: "file exists"
-        when: file_status.stat.exists
+      when: file_status.stat.exists
+
+     - name: showing the file status
+      ansible.builtin.debug:
+        msg: "file do not exists"
+      when: not file_status.stat.exists
