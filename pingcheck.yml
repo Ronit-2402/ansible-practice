@@ -1,7 +1,7 @@
 ---
 - name: checking the connections
   hosts: all
-  gather_facts: false
+  gather_facts: no
   tasks:
     - name: pinging the server
       ansible.builtin.ping:
