@@ -7,10 +7,9 @@
     - name: Check chronyd service status
       ansible.builtin.command:
         cmd: systemctl is-active chronyd
-      register: chronyd_result
-      changed_when: false
-      failed_when: false
+      register: result
+      ignore_errors: true 
       
     - name: Report the status
       ansible.builtin.debug:
-        msg: "The status of chronyd is {{ chronyd_result.stdout }}"
+        var: result.stdout
