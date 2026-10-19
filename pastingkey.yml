@@ -8,4 +8,5 @@
     ansible.posix.authorized_key:
       user: admin
       state: present
-      key: "{{ lookup('file', 'id_ed25519.pub') }}"
+      key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEBjkEPvO65udU/ltlCfcGcLtbYrPLIsSvJY81Yjd+Ok admin@ansible-test.example.com
+"
