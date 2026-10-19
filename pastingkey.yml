@@ -1,0 +1,11 @@
+---
+- name: Adding SSH key to all servers
+  hosts: all
+  gather_facts: no 
+
+  tasks:
+  - name: Adding ssh key to all the server
+    ansible.posix.authorized_key:
+      user: admin
+      state: present
+      key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
