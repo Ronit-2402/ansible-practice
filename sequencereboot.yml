@@ -1,0 +1,16 @@
+---
+- name: reboot all servers in sequence 
+  hosts: practice_servers
+  become: true
+  gather_facts: false  
+  serial: 1
+   
+  tasks:
+    - name: Reboot the server
+      ansible.builtin.reboot:
+        post_reboot_delay: 60
+        reboot_timeout: 180
+        test_command: systemctl is-active chronyd
+
+    - name: checking if the server is pinging or not 
+      ansible.builtin.ping: 
