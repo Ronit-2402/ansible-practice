@@ -1,0 +1,11 @@
+---
+- name: Adding SSH key to all servers
+  hosts: all
+  gather_facts: no
+
+  tasks:
+  - name: Adding ssh key to all the server
+    ansible.posix.authorized_key:
+      user: admin
+      state: present
+      key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIE4bQeFqfVm2pPUgxK+kUKXHApCY7U0v6XghCYWHQSa admin@ansible-test.example.com"
