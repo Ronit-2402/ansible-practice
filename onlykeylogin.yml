@@ -1,0 +1,48 @@
+---
+- name: disabling all login posibilties other than ssh keys
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+  - name: Disabling password authentication and root login
+    block:
+    - name: Disable root login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#PermitRootLogin'
+        line: 'PermitRootLogin no'
+
+    - name: Disabling password authentication login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#PasswordAuthentication'
+        line: 'PasswordAuthentication no'
+
+    - name: making sure key auth is enabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#PubkeyAuthentication'
+        line: 'PubkeyAuthentication yes'
+
+    - name: validation- checking for syntax errors in sshd_config file
+      ansible.builtin.command: sshd -t
+      register: result
+      ignore_errors: true
+
+    - name: restart if the validation is passed
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
+      when: result.rc == 0
+
+    - name: save logs of execution
+      ansible.builtin.lineinfile:
+        path: "/tmp/ssh_config_status.log"
+        create: yes
+        line: "server {{ inventory_hostname }} sshd_config updated successfully."
+
+    rescue:
+    - name: Handle errors during SSH configuration update
+      ansible.builtin.debug:
+        msg: "Error: Server {{ inventory_hostname }} failed to update sshd_config or restart sshd service."
