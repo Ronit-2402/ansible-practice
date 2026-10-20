@@ -1,17 +1,17 @@
 ---
-- name: reboot all servers in sequence 
+- name: rebooting All the servers in sequence. 
   hosts: all
   become: true
   gather_facts: false  
   serial: 1
    
   tasks:
-    - name: Safe reboot process with checks and logs
+    - name: trying saafe reboot process with checks and log
       block:
-        - name: Check if server is online before reboot
+        - name: Checkin if server is online before reboot or not.
           ansible.builtin.ping:
 
-        - name: Reboot the server
+        - name: server reboot
           ansible.builtin.reboot:
             post_reboot_delay: 30
             reboot_timeout: 60
