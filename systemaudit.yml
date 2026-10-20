@@ -8,7 +8,7 @@
     block:
     - name: which server, which os and which kernel
       ansible.builtin.debug:
-        msg: "Server: {{ ansible_hostname }}, OS: {{ ansible_distribution }}, Kernel: {{ ansible_distribution_version }}, CPU: {{ ansible_proccessor_vcpus }}"
+        msg: "Server: {{ ansible_hostname }}, OS: {{ ansible_distribution }}, Kernel: {{ ansible_distribution_version }}, CPU: {{ ansible_processor_vcpus }}"
 
     - name: validation of the os and kernel version
       ansible.builtin.assert:
