@@ -1,0 +1,41 @@
+---
+- name: reboot all servers in sequence 
+  hosts: all
+  become: true
+  gather_facts: true  # Timestamp aur hostname ke liye facts enable kar diye hain
+  serial: 1
+   
+  tasks:
+    - name: SECTION - Sequential Reboot with Validation & Error Handling
+      block:
+        - name: PRE-CHECK - Verify server connectivity before reboot
+          ansible.builtin.ping:
+
+        - name: Reboot the server
+          ansible.builtin.reboot:
+            post_reboot_delay: 30
+            reboot_timeout: 60
+
+        - name: POST-CHECK - Verify server is back online and responding
+          ansible.builtin.ping:
+
+        - name: Log Successful Reboot
+          ansible.builtin.lineinfile:
+            path: "/tmp/reboot_execution.log"
+            create: yes
+            line: "[{{ ansible_date_time.iso8601 }}] HOST: {{ inventory_hostname }} | Status: Rebooted and Verified Successfully"
+          delegate_to: localhost
+          changed_when: false
+
+      rescue:
+        - name: ERROR HANDLING - Catch reboot failure or timeout
+          ansible.builtin.debug:
+            msg: "CRITICAL ALERT: Reboot or health check failed on {{ inventory_hostname }}!"
+
+        - name: Log Failed Reboot
+          ansible.builtin.lineinfile:
+            path: "/tmp/reboot_execution.log"
+            create: yes
+            line: "[{{ ansible_date_time.iso8601 }}] HOST: {{ inventory_hostname }} | Status: FAILED / Reboot Timed Out"
+          delegate_to: localhost
+          changed_when: false
