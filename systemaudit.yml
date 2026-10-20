@@ -1,0 +1,85 @@
+---
+- name: machine audit
+  hosts: all
+  gather_facts: true
+
+  tasks:
+  - name: Check the os and kernel version
+    block:
+    - name: which server, which os and which kernel
+      ansible.builtin.debug:
+        msg: "Server: {{ ansible_hostname }}, OS: {{ ansible_distribution }}, Kernel: {{ ansible_distribution_version }}, CPU: {{ ansible_proccessor_vcpus }}"
+
+    - name: validation of the os and kernel version
+      ansible.builtin.assert:
+        that:
+        - ansible_distribution == "RedHat"
+        - ansible_distribution_version is version('9', '>=')
+        - ansible_kernel is version('5.14', '>=')
+        fail_msg: "Compliance failed: The server {{ ansible_hostname }} does not meet the required OS and kernel version criteria."
+        success_msg: "Compliance passed: The server {{ ansible_hostname }} meets the required OS and kernel version criteria."
+    rescue:
+    - name: Handle errors during OS and kernel version check
+      ansible.builtin.debug:
+        msg: "Error occurred while checking OS and kernel version on server {{ ansible_hostname }}."
+
+  - name: Check the hardware specifications
+    block:
+    - name: Check CPU and memory
+      ansible.builtin.debug:
+        msg: "CPUs: {{ ansible_processor_vcpus }}, Memory: {{ ansible_memtotal_mb }} MB"
+
+    - name: checking disk usage percentage
+      ansible.builtin.shell: "df -h --output=pcent / | tail -n 1 | tr -d ' %'"
+      register: disk_usage
+      changed_when: false
+
+    - name: Validation - fail if disk usage is above the threshold 90%
+      ansible.builtin.fail:
+        msg: "Disk usage is above the threshold of 90% on server {{ ansible_hostname }}. Current usage: {{ disk_usage.stdout }}%"
+      when: disk_usage.stdout | int > 90
+
+    rescue:
+    - name: Handle errors during hardware specifications check
+      ansible.builtin.debug:
+        msg: "There is some issue with the hardware specifications check on server {{ ansible_hostname }}."
+
+  - name: gather the list of installed packages
+    block:
+    - name: List installed packages
+      ansible.builtin.shell: "rpm -qa"
+      register: installed_packages
+      changed_when: false
+
+    - name: Display the list of installed packages
+      ansible.builtin.debug:
+        var: installed_packages.stdout_lines
+
+    - name: print name of all installed packages on the final report
+      ansible.builtin.debug:
+        msg: "Installed packages on server {{ ansible_hostname }}: {{ installed_packages.stdout_lines }}"
+
+    rescue:
+    - name: Handle errors during package listing
+      ansible.builtin.debug:
+        msg: "There is some issue with the package listing on server {{ inventory_hostname }}"
+
+  - name: execution log generation
+    block:
+    - name: Generate execution log
+      ansible.builtin.copy:
+        content: |
+          Execution Log for Server {{ ansible_hostname }}:
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Kernel: {{ ansible_kernel }}
+          CPUs: {{ ansible_processor_vcpus }}
+          Memory: {{ ansible_memtotal_mb }} MB
+          Disk Usage: {{ disk_usage.stdout }}%
+          Installed Packages: {{ installed_packages.stdout_lines }}
+        dest: "/tmp/execution_log_{{ ansible_hostname }}.txt"
+        mode: '0644'
+
+    rescue:
+    - name: Handle errors during log generation
+      ansible.builtin.debug:
+        msg: "There is some issue with the log generation on server {{ inventory_hostname }}"
