@@ -1,5 +1,4 @@
-SERVICE STATUS REPORT
-=====================
+ service stauts report 
 {% for host in ansible_play_hosts_all %}
 {{ host }}
 {% for s in hostvars[host].service_status_result | default([]) %}
