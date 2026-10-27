@@ -1,0 +1,15 @@
+---
+# ---------- Compliance baseline (these values feed the assert tasks) ----------
+# Where each value comes from is written in README.md ("Task 4 - how the
+# conditions were identified"). Change them to match the project's standard.
+system_audit_required_distribution: RedHat
+system_audit_min_os_version: "9"
+system_audit_min_kernel_version: "5.14"
+system_audit_required_selinux_mode: enforcing
+system_audit_disk_threshold_percent: 90
+
+# ---------- Output ----------
+# Per-server report file on the managed node (old report is backed up first)
+system_audit_report_dir: /var/tmp
+# true = job fails at the end if any server is non-compliant
+system_audit_fail_on_noncompliance: false

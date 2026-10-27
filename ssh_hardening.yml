@@ -1,0 +1,10 @@
+---
+- name: Use Case 5 - ssh security best-practice enforcement
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset:
+    - min
+
+  roles:
+    - ssh_hardening

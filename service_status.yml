@@ -1,0 +1,9 @@
+---
+- name: Use Case 1 - service status monitoring
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+
+  roles:
+    - service_status

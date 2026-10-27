@@ -1,0 +1,9 @@
+---
+- name: Use Case 3 - ssh key rotation
+  hosts: all
+  gather_facts: true
+  gather_subset:
+    - min
+
+  roles:
+    - ssh_key_rotation

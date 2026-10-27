@@ -1,0 +1,35 @@
+---
+- name: Login test with the new key only (no password, no other keys)
+  ansible.builtin.command:
+    argv:
+      - ssh
+      - -i
+      - "{{ ssh_key_rotation_new_private_key_path }}"
+      - -o
+      - BatchMode=yes
+      - -o
+      - IdentitiesOnly=yes
+      - -o
+      - PasswordAuthentication=no
+      - -o
+      - "StrictHostKeyChecking={{ ssh_key_rotation_strict_host_key_checking }}"
+      - -o
+      - "ConnectTimeout={{ ssh_key_rotation_connect_timeout }}"
+      - -p
+      - "{{ ansible_port | default(22) }}"
+      - "{{ ssh_key_rotation_user }}@{{ ansible_host | default(inventory_hostname) }}"
+      - whoami
+  delegate_to: localhost
+  become: false
+  register: ssh_key_rotation_login
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: ssh_key_rotation_login.rc == 0
+
+- name: Confirm that we really logged in as the right user
+  ansible.builtin.assert:
+    that:
+      - ssh_key_rotation_login.stdout | trim == ssh_key_rotation_user
+    fail_msg: "Login with the new key did not return the expected user"
+    quiet: true

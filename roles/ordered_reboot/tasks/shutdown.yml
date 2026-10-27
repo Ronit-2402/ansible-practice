@@ -1,0 +1,14 @@
+---
+- name: Shut down the server (after a short delay so the task can finish)
+  ansible.builtin.command: "shutdown -h +{{ ordered_reboot_shutdown_delay_minutes }} 'Planned shutdown by Ansible'"
+  changed_when: true
+
+- name: Validate that the server is really down (SSH port closed)
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: "{{ ansible_port | default(22) }}"
+    state: stopped
+    delay: 30
+    timeout: "{{ ordered_reboot_timeout }}"
+  delegate_to: localhost
+  become: false

@@ -1,0 +1,19 @@
+---
+# Service name is chosen from the OS family (sshd on RedHat, ssh on Debian)
+ssh_hardening_service_name: "{{ 'sshd' if ansible_facts['os_family'] == 'RedHat' else 'ssh' }}"
+ssh_hardening_sshd_binary: /usr/sbin/sshd
+ssh_hardening_config_file: /etc/ssh/sshd_config
+
+# Settings to enforce. Keep the values in quotes: unquoted yes/no become
+# true/false in YAML and the wrong text would be written to sshd_config.
+ssh_hardening_settings:
+  PubkeyAuthentication: "yes"
+  PermitRootLogin: "no"
+  PasswordAuthentication: "no"
+
+# Safety check: this user must already have a key in authorized_keys,
+# otherwise disabling password login would lock everyone out.
+ssh_hardening_check_keys: true
+ssh_hardening_admin_user: admin
+
+ssh_hardening_log_file: /var/log/ansible_ssh_hardening.log

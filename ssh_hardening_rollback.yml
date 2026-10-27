@@ -1,0 +1,13 @@
+---
+- name: Rollback - restore the latest sshd_config backup
+  hosts: all
+  become: true
+  gather_facts: true
+  gather_subset:
+    - min
+
+  tasks:
+    - name: Run the rollback tasks of the ssh_hardening role
+      ansible.builtin.include_role:
+        name: ssh_hardening
+        tasks_from: rollback.yml

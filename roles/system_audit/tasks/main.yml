@@ -1,0 +1,98 @@
+---
+# ---------------- 1. Collect system information ----------------
+- name: Work out the disk usage of / in percent
+  ansible.builtin.set_fact:
+    system_audit_disk_used_percent: >-
+      {{ (((root_mount.size_total - root_mount.size_available) / root_mount.size_total) * 100) | round(1) }}
+  vars:
+    root_mount: "{{ ansible_facts['mounts'] | selectattr('mount', 'equalto', '/') | list | first }}"
+
+- name: Collect the software inventory
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Show the basic system information
+  ansible.builtin.debug:
+    msg:
+      - "Server : {{ ansible_facts['hostname'] }}"
+      - "OS     : {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+      - "Kernel : {{ ansible_facts['kernel'] }}"
+      - "CPU    : {{ ansible_facts['processor_vcpus'] }} vCPU"
+      - "Memory : {{ ansible_facts['memtotal_mb'] }} MB"
+      - "Disk / : {{ system_audit_disk_used_percent }}% used"
+      - "Packages installed : {{ ansible_facts['packages'] | length }}"
+
+# ---------------- 2. Compliance checks ----------------
+# Every check uses a variable from defaults/main.yml, nothing is hardcoded.
+# ignore_errors is used so that one failed check does not stop the audit;
+# the result of each check is collected and reported at the end.
+- name: Check OS name and version against the baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == system_audit_required_distribution
+      - ansible_facts['distribution_version'] is version(system_audit_min_os_version, '>=')
+    fail_msg: >-
+      OS is {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }},
+      expected {{ system_audit_required_distribution }} {{ system_audit_min_os_version }} or higher
+    success_msg: "OS meets the baseline"
+  register: system_audit_check_os
+  ignore_errors: true
+
+- name: Check kernel version against the baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['kernel'].split('-')[0] is version(system_audit_min_kernel_version, '>=')
+    fail_msg: "Kernel is {{ ansible_facts['kernel'] }}, expected {{ system_audit_min_kernel_version }} or higher"
+    success_msg: "Kernel meets the baseline"
+  register: system_audit_check_kernel
+  ignore_errors: true
+
+- name: Check SELinux mode against the baseline
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['selinux']['mode'] | default('disabled') == system_audit_required_selinux_mode
+    fail_msg: "SELinux mode is {{ ansible_facts['selinux']['mode'] | default('disabled') }}, expected {{ system_audit_required_selinux_mode }}"
+    success_msg: "SELinux meets the baseline"
+  register: system_audit_check_selinux
+  ignore_errors: true
+
+- name: Check disk usage against the threshold
+  ansible.builtin.assert:
+    that:
+      - system_audit_disk_used_percent | float <= system_audit_disk_threshold_percent | float
+    fail_msg: "Disk / is {{ system_audit_disk_used_percent }}% used, threshold is {{ system_audit_disk_threshold_percent }}%"
+    success_msg: "Disk usage is within the threshold"
+  register: system_audit_check_disk
+  ignore_errors: true
+
+- name: Collect the failed checks and set the final status
+  ansible.builtin.set_fact:
+    system_audit_failures: >-
+      {{ [system_audit_check_os, system_audit_check_kernel, system_audit_check_selinux, system_audit_check_disk]
+         | selectattr('failed') | map(attribute='msg') | list }}
+
+- name: Set the compliance status
+  ansible.builtin.set_fact:
+    system_audit_status: "{{ 'NON-COMPLIANT' if system_audit_failures | length > 0 else 'COMPLIANT' }}"
+
+# ---------------- 3. Per-server report file (with backup) ----------------
+- name: Write the audit report on the server (old report is backed up first)
+  ansible.builtin.template:
+    src: audit_report.txt.j2
+    dest: "{{ system_audit_report_dir }}/system_audit_{{ inventory_hostname }}.txt"
+    mode: "0644"
+    backup: true
+
+# ---------------- 4. One consolidated report ----------------
+- name: Show one consolidated report for all servers
+  ansible.builtin.debug:
+    msg: "{{ lookup('ansible.builtin.template', 'summary.j2').splitlines() }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: Fail the job if any server is non-compliant (only when enabled)
+  ansible.builtin.fail:
+    msg: "{{ inventory_hostname }} is NON-COMPLIANT: {{ system_audit_failures | join('; ') }}"
+  when:
+    - system_audit_fail_on_noncompliance | bool
+    - system_audit_status == 'NON-COMPLIANT'

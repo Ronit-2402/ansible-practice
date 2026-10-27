@@ -1,0 +1,20 @@
+SYSTEM AUDIT REPORT - {{ inventory_hostname }}
+Status  : {{ system_audit_status }}
+OS      : {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+Kernel  : {{ ansible_facts['kernel'] }}
+CPU     : {{ ansible_facts['processor_vcpus'] }} vCPU
+Memory  : {{ ansible_facts['memtotal_mb'] }} MB
+Disk /  : {{ system_audit_disk_used_percent }}% used
+SELinux : {{ ansible_facts['selinux']['mode'] | default('disabled') }}
+
+Failed checks:
+{% for f in system_audit_failures %}
+ - {{ f }}
+{% else %}
+ - none
+{% endfor %}
+
+Installed packages ({{ ansible_facts['packages'] | length }}):
+{% for name in ansible_facts['packages'].keys() | sort %}
+{{ name }}
+{% endfor %}

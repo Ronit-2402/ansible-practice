@@ -1,0 +1,49 @@
+---
+- name: Check that the requested action is supported
+  ansible.builtin.assert:
+    that:
+      - ordered_reboot_action in ['reboot', 'shutdown']
+    fail_msg: "ordered_reboot_action must be 'reboot' or 'shutdown'"
+    quiet: true
+
+- name: Run the action safely with checks, validation and alert
+  block:
+    - name: Check that the server is online before we start
+      ansible.builtin.ping:
+
+    - name: Run the requested action
+      ansible.builtin.include_tasks: "{{ ordered_reboot_action }}.yml"
+
+    - name: Wait before going to the next server
+      ansible.builtin.pause:
+        seconds: "{{ ordered_reboot_gap_seconds }}"
+      when: ordered_reboot_gap_seconds | int > 0
+
+  rescue:
+    - name: Send e-mail that manual verification is needed
+      community.general.mail:
+        host: "{{ ordered_reboot_smtp_host }}"
+        port: "{{ ordered_reboot_smtp_port }}"
+        from: "{{ ordered_reboot_mail_from }}"
+        to: "{{ ordered_reboot_mail_to }}"
+        subject: "ACTION REQUIRED: {{ inventory_hostname }} - {{ ordered_reboot_action }} needs manual verification"
+        body: |
+          Server {{ inventory_hostname }} did not complete the planned {{ ordered_reboot_action }}.
+          It is still down or not healthy after waiting {{ (ordered_reboot_timeout | int / 60) | round(0) | int }} minutes.
+          Please verify the server manually.
+
+          Failed task : {{ ansible_failed_task.name | default('unknown') }}
+          Reason      : {{ ansible_failed_result.msg | default('unknown') }}
+      delegate_to: localhost
+      become: false
+      register: ordered_reboot_mail_result
+      ignore_errors: true
+      when: ordered_reboot_mail_enabled | bool
+
+    - name: Stop the sequence so the next server is not touched
+      ansible.builtin.fail:
+        msg: >-
+          {{ inventory_hostname }}: {{ ordered_reboot_action }} failed or the server did not come back
+          within {{ ordered_reboot_timeout }} seconds. Manual verification needed.
+          Reason: {{ ansible_failed_result.msg | default('unknown') }}.
+          E-mail sent: {{ (ordered_reboot_mail_result is defined and ordered_reboot_mail_result is succeeded) | ternary('yes', 'no / not enabled') }}

@@ -1,0 +1,31 @@
+---
+- name: Start with an empty result list for this host
+  ansible.builtin.set_fact:
+    service_status_result: []
+
+- name: Collect service facts from the host
+  ansible.builtin.service_facts:
+
+- name: Build the status list for this host
+  ansible.builtin.set_fact:
+    service_status_result: >-
+      {{ service_status_result +
+         [{'service': item,
+           'state': ansible_facts.services[item ~ '.service'].state | default('not-found')}] }}
+  loop: "{{ service_status_services }}"
+
+- name: Create one consolidated report for all hosts
+  ansible.builtin.debug:
+    msg: "{{ lookup('ansible.builtin.template', 'report.j2').splitlines() }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: Fail if a required service is not running (only when enabled)
+  ansible.builtin.assert:
+    that:
+      - service_status_result | rejectattr('state', 'equalto', 'running') | list | length == 0
+    fail_msg: >-
+      Not running on {{ inventory_hostname }}:
+      {{ service_status_result | rejectattr('state', 'equalto', 'running') | map(attribute='service') | join(', ') }}
+    quiet: true
+  when: service_status_fail_on_inactive | bool

@@ -1,0 +1,29 @@
+---
+- name: Find the available sshd_config backups
+  ansible.builtin.find:
+    paths: "{{ ssh_hardening_config_file | dirname }}"
+    patterns: "{{ ssh_hardening_config_file | basename }}.bak_*"
+  register: ssh_hardening_backups
+
+- name: Stop if there is no backup to restore
+  ansible.builtin.assert:
+    that:
+      - ssh_hardening_backups.files | length > 0
+    fail_msg: "No backup of {{ ssh_hardening_config_file }} found on {{ inventory_hostname }}"
+    quiet: true
+
+- name: Restore the newest backup
+  ansible.builtin.copy:
+    src: "{{ (ssh_hardening_backups.files | sort(attribute='mtime') | last).path }}"
+    dest: "{{ ssh_hardening_config_file }}"
+    remote_src: true
+    mode: preserve
+
+- name: Validate the restored configuration
+  ansible.builtin.command: "{{ ssh_hardening_sshd_binary }} -t"
+  changed_when: false
+
+- name: Reload sshd
+  ansible.builtin.service:
+    name: "{{ ssh_hardening_service_name }}"
+    state: reloaded

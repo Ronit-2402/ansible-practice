@@ -1,0 +1,32 @@
+---
+# What to do: reboot or shutdown
+ordered_reboot_action: reboot
+
+# Reboot is done only when the OS says it is needed.
+# Set true only if you really want to reboot without that check.
+ordered_reboot_force: false
+
+# Package that provides the "needs-restarting" command (RHEL 8/9)
+ordered_reboot_check_package: dnf-utils
+
+# Wait for the server after reboot (seconds). 600 = 10 minutes.
+ordered_reboot_timeout: 600
+ordered_reboot_post_delay: 30
+
+# Delay (seconds) before moving on to the next server in the sequence
+ordered_reboot_gap_seconds: 60
+
+# Minutes to wait before power-off, so the Ansible task can finish cleanly
+ordered_reboot_shutdown_delay_minutes: 1
+
+# Services that must be running again after the reboot
+ordered_reboot_validate_services:
+  - sshd
+
+# E-mail sent when the server does not come back in time
+ordered_reboot_mail_enabled: true
+ordered_reboot_smtp_host: smtp.example.com
+ordered_reboot_smtp_port: 25
+ordered_reboot_mail_from: ansible@example.com
+ordered_reboot_mail_to:
+  - team@example.com

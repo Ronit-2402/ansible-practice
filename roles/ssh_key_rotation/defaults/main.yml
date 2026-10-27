@@ -1,0 +1,22 @@
+---
+# Account on the managed nodes whose authorized_keys will be managed
+ssh_key_rotation_user: admin
+
+# Content of the NEW public key (one line). Pass it from AAP Extra Variables / Survey.
+ssh_key_rotation_new_public_key: ""
+
+# Path of the matching NEW private key on the CONTROL node (the AAP execution
+# environment). The private key is never copied to the managed nodes.
+ssh_key_rotation_new_private_key_path: ""
+
+# Content of the OLD public key to revoke. Leave empty to only install the new key
+# (also use it like this for the first passwordless setup).
+ssh_key_rotation_old_public_key: ""
+
+# Permissions that must be kept on the managed nodes
+ssh_key_rotation_ssh_dir_mode: "0700"
+ssh_key_rotation_authorized_keys_mode: "0600"
+
+# Used when we test the login with the new key
+ssh_key_rotation_strict_host_key_checking: accept-new
+ssh_key_rotation_connect_timeout: 10

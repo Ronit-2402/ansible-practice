@@ -1,0 +1,9 @@
+---
+- name: Use Case 2 - ordered reboot / shutdown (one server at a time)
+  hosts: all
+  become: true
+  gather_facts: false
+  serial: 1
+
+  roles:
+    - ordered_reboot

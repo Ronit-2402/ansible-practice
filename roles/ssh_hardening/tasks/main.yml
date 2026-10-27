@@ -1,0 +1,99 @@
+---
+# ---------------- Safety check before touching anything ----------------
+- name: Find the home directory of the admin user
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ ssh_hardening_admin_user }}"
+  when: ssh_hardening_check_keys | bool
+
+- name: Check that the admin user has an authorized_keys file
+  ansible.builtin.stat:
+    path: "{{ getent_passwd[ssh_hardening_admin_user][4] }}/.ssh/authorized_keys"
+  register: ssh_hardening_ak
+  when: ssh_hardening_check_keys | bool
+
+- name: Stop if no key is installed (password login would lock us out)
+  ansible.builtin.assert:
+    that:
+      - ssh_hardening_ak.stat.exists
+      - ssh_hardening_ak.stat.size > 0
+    fail_msg: "No SSH key found for {{ ssh_hardening_admin_user }} on {{ inventory_hostname }}. Run the ssh_key_rotation playbook first."
+    quiet: true
+  when: ssh_hardening_check_keys | bool
+
+- name: Remember the time stamp used in the backup name
+  ansible.builtin.set_fact:
+    ssh_hardening_stamp: "{{ ansible_facts['date_time']['iso8601_basic_short'] }}"
+
+# ---------------- Change with backup, validation and rollback ----------------
+- name: Harden sshd_config with backup, validation and rollback
+  block:
+    - name: Take a backup of sshd_config before any change
+      ansible.builtin.copy:
+        src: "{{ ssh_hardening_config_file }}"
+        dest: "{{ ssh_hardening_config_file }}.bak_{{ ssh_hardening_stamp }}"
+        remote_src: true
+        mode: preserve
+
+    - name: Apply the settings (each change is validated by sshd before it is saved)
+      ansible.builtin.lineinfile:
+        path: "{{ ssh_hardening_config_file }}"
+        regexp: '^\s*#?\s*{{ item.key }}\s'
+        line: "{{ item.key }} {{ item.value }}"
+        validate: "{{ ssh_hardening_sshd_binary }} -t -f %s"
+      loop: "{{ ssh_hardening_settings | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Validate the full sshd configuration
+      ansible.builtin.command: "{{ ssh_hardening_sshd_binary }} -t"
+      changed_when: false
+
+    - name: Read the effective sshd configuration
+      ansible.builtin.command: "{{ ssh_hardening_sshd_binary }} -T"
+      register: ssh_hardening_effective
+      changed_when: false
+
+    - name: Check that every setting is really effective
+      ansible.builtin.assert:
+        that:
+          - (item.key | lower) ~ ' ' ~ (item.value | lower) in ssh_hardening_effective.stdout_lines
+        fail_msg: "{{ item.key }} is not {{ item.value }} in the effective sshd configuration (another file may override it)"
+        quiet: true
+      loop: "{{ ssh_hardening_settings | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Reload sshd (only reached when all validations passed)
+      ansible.builtin.service:
+        name: "{{ ssh_hardening_service_name }}"
+        state: reloaded
+
+    - name: Save the execution log
+      ansible.builtin.lineinfile:
+        path: "{{ ssh_hardening_log_file }}"
+        create: true
+        mode: "0640"
+        line: "{{ ssh_hardening_stamp }} {{ inventory_hostname }} sshd_config hardened, backup {{ ssh_hardening_config_file }}.bak_{{ ssh_hardening_stamp }}"
+        insertafter: EOF
+
+  rescue:
+    - name: Rollback - restore the original sshd_config
+      ansible.builtin.copy:
+        src: "{{ ssh_hardening_config_file }}.bak_{{ ssh_hardening_stamp }}"
+        dest: "{{ ssh_hardening_config_file }}"
+        remote_src: true
+        mode: preserve
+
+    - name: Rollback - validate the restored configuration
+      ansible.builtin.command: "{{ ssh_hardening_sshd_binary }} -t"
+      changed_when: false
+
+    - name: Rollback - reload sshd with the original configuration
+      ansible.builtin.service:
+        name: "{{ ssh_hardening_service_name }}"
+        state: reloaded
+
+    - name: Stop the job after the rollback
+      ansible.builtin.fail:
+        msg: "SSH hardening failed on {{ inventory_hostname }} and the original sshd_config was restored: {{ ansible_failed_result.msg | default('unknown') }}"

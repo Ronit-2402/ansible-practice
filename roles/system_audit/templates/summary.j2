@@ -1,0 +1,12 @@
+SYSTEM AUDIT SUMMARY
+====================
+{% for host in ansible_play_hosts_all %}
+{% if hostvars[host].system_audit_status is defined %}
+{{ host }} : {{ hostvars[host].system_audit_status }} | {{ hostvars[host].ansible_facts.distribution }} {{ hostvars[host].ansible_facts.distribution_version }} | kernel {{ hostvars[host].ansible_facts.kernel }} | {{ hostvars[host].ansible_facts.processor_vcpus }} vCPU | {{ hostvars[host].ansible_facts.memtotal_mb }} MB | disk {{ hostvars[host].system_audit_disk_used_percent }}% | {{ hostvars[host].ansible_facts.packages | length }} packages
+{% for f in hostvars[host].system_audit_failures %}
+    - {{ f }}
+{% endfor %}
+{% else %}
+{{ host }} : NO DATA (host unreachable or task failed)
+{% endif %}
+{% endfor %}

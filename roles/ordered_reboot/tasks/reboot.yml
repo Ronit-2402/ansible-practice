@@ -1,0 +1,35 @@
+---
+- name: Make sure the reboot-check tool is installed
+  ansible.builtin.dnf:
+    name: "{{ ordered_reboot_check_package }}"
+    state: present
+
+- name: Check if a reboot is really required
+  ansible.builtin.command: needs-restarting -r
+  register: ordered_reboot_check
+  changed_when: false
+  failed_when: ordered_reboot_check.rc not in [0, 1]
+
+- name: Show the result of the check
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }}: reboot {{ 'is REQUIRED' if ordered_reboot_check.rc == 1 else 'is not required' }}"
+
+- name: Reboot only when required (or forced) and validate
+  when: ordered_reboot_check.rc == 1 or ordered_reboot_force | bool
+  block:
+    - name: Reboot and wait for the server to come back
+      ansible.builtin.reboot:
+        post_reboot_delay: "{{ ordered_reboot_post_delay }}"
+        reboot_timeout: "{{ ordered_reboot_timeout }}"
+        test_command: uptime
+
+    - name: Collect service facts after the reboot
+      ansible.builtin.service_facts:
+
+    - name: Check that the required services are running again
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services[item ~ '.service'].state | default('missing') == 'running'
+        fail_msg: "{{ item }} is not running after the reboot on {{ inventory_hostname }}"
+        quiet: true
+      loop: "{{ ordered_reboot_validate_services }}"

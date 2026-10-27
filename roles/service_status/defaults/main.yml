@@ -1,0 +1,20 @@
+---
+# Service names are NOT hardcoded in the tasks, because they differ between
+# OS families / environments (chronyd vs chrony, sshd vs ssh, crond vs cron).
+# To change them: override service_status_services from AAP (Extra Variables /
+# Survey), group_vars or host_vars.
+service_status_services_by_os_family:
+  RedHat:
+    - chronyd
+    - sshd
+    - crond
+  Debian:
+    - chrony
+    - ssh
+    - cron
+
+# List that the tasks actually use (picked by OS family, RedHat if unknown)
+service_status_services: "{{ service_status_services_by_os_family[ansible_facts['os_family']] | default(service_status_services_by_os_family['RedHat']) }}"
+
+# true = job fails at the end if any required service is not running
+service_status_fail_on_inactive: false

@@ -1,0 +1,5 @@
+---
+# AAP installs these automatically when the project is synced
+collections:
+  - name: ansible.posix
+  - name: community.general
