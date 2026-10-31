@@ -9,6 +9,6 @@ service_status_services_by_server_team :
     - ssh
     - cron
 
-service_status_services: "{{ service_status_services_by_os_family[ansible_facts['os_family']] | default(service_status_services_by_os_family['RedHat']) }}"
+service_status_services: "{{ service_status_services_by_server_team[ansible_facts['os_family']] | default(service_status_services_by_server_team['RedHat']) }}"
 
 service_status_fail_on_inactive: false
