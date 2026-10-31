@@ -1,5 +1,5 @@
 ---
-service_status_services_by_os_family:
+service_status_services_by__server_team :
   RedHat:
     - chronyd
     - sshd
