@@ -25,7 +25,7 @@ ordered_reboot_validate_services:
 
 # E-mail sent when the server does not come back in time
 ordered_reboot_mail_enabled: true
-ordered_reboot_smtp_host: smtp.gmail.com
+ordered_reboot_smtp_host: 192.178.158.108
 ordered_reboot_smtp_port: 25
 ordered_reboot_mail_from: rajpratapronit@gmail.com
 ordered_reboot_mail_to:
