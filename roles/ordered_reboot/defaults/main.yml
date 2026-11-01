@@ -7,7 +7,7 @@ ordered_reboot_action: reboot
 ordered_reboot_force: false
 
 # Package that provides the "needs-restarting" command (RHEL 8/9)
-ordered_reboot_check_package: dnf-utils
+ordered_reboot_check_package: dnf-plugins-core
 
 # Wait for the server after reboot (seconds). 600 = 10 minutes.
 ordered_reboot_timeout: 600
